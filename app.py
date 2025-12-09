@@ -530,7 +530,7 @@ def cmd_delete_user(message):
     tgid = int(parts[1])
     ok = delete_user_record(tgid)
     bot.reply_to(message, "Deleted." if ok else "User not found.")
-    @bot.message_handler(commands=["profile"])
+@bot.message_handler(commands=["profile"])
 def cmd_profile(message):
     uid = message.from_user.id
     rec = get_user_record(uid)
