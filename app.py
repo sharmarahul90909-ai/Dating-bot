@@ -516,4 +516,90 @@ def cmd_broadcast(message):
             sent += 1
         except Exception:
             continue
-                             
+    bot.reply_to(message, f"Broadcast sent to {sent} users.")
+
+@bot.message_handler(commands=["delete_user"])
+def cmd_delete_user(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "Admin only.")
+        return
+    parts = message.text.split()
+    if len(parts) != 2 or not parts[1].isdigit():
+        bot.reply_to(message, "Usage: /delete_user <tgid>")
+        return
+    tgid = int(parts[1])
+    ok = delete_user_record(tgid)
+    bot.reply_to(message, "Deleted." if ok else "User not found.")
+    @bot.message_handler(commands=["profile"])
+def cmd_profile(message):
+    uid = message.from_user.id
+    rec = get_user_record(uid)
+    if not rec:
+        bot.reply_to(message, "No profile found. Use /start to register.")
+        return
+    caption = (f"Name: {rec.get('name')}\nAge: {rec.get('age')}\nCity: {rec.get('city')}\n"
+               f"Bio: {rec.get('bio')}\nVIP: {rec.get('vip')}")
+    try:
+        bot.send_photo(uid, rec.get("photo_file_id"), caption=caption)
+    except Exception:
+        bot.send_message(uid, caption)
+
+@bot.message_handler(commands=["profiles"])
+def cmd_profiles(message):
+    bot.send_message(message.chat.id, "Use /menu -> Browse for a better experience.")
+    @bot.message_handler(commands=["buy"])
+def cmd_buy(message):
+    bot.reply_to(message, "VIP & coins: manual upgrade handled by admins. Contact /help for admin contacts.")
+
+@bot.message_handler(commands=["help"])
+def cmd_help(message):
+    admin_links = ", ".join([f"<a href='tg://user?id={aid}'>{aid}</a>" for aid in ADMIN_IDS]) if ADMIN_IDS else "No admins set"
+    bot.send_message(message.chat.id, f"Admins: {admin_links}\nCommands: /start /menu /profile /profiles /buy /help", parse_mode="HTML")
+
+# ---------------- webhook + health endpoints ----------------
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+    try:
+        json_str = request.get_data().decode("utf-8")
+        if not json_str:
+            return "", 400
+        update = telebot.types.Update.de_json(json_str)
+        bot.process_new_updates([update])
+        return "", 200
+    except Exception as e:
+        logger.exception("Error processing update: %s", e)
+        return "", 500
+
+@app.route("/", methods=["GET"])
+def index():
+    return "Dating-bot is running", 200
+
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    return "OK", 200
+
+# ---------------- set webhook (executed on import) ----------------
+def set_webhook():
+    try:
+        full = f"{WEBHOOK_URL.rstrip('/')}/{BOT_TOKEN}"
+        logger.info("Removing existing webhook (if any)...")
+        try:
+            bot.remove_webhook()
+        except Exception:
+            pass
+        time.sleep(0.7)
+        logger.info("Setting webhook to %s", full)
+        bot.set_webhook(url=full)
+        logger.info("Webhook set successfully.")
+    except Exception as e:
+        logger.exception("Failed to set webhook: %s", e)
+
+# Set webhook now (gunicorn workers may call this on import)
+set_webhook()
+
+# ---------------- run (development) ----------------
+if __name__ == "__main__":
+    # local debug: read PORT env or default 5000
+    port = int(os.environ.get("PORT", 5000))
+    logger.info("Starting Flask dev server on port %d", port)
+    app.run(host="0.0.0.0", port=port)
