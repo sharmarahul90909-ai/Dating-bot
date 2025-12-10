@@ -65,10 +65,15 @@ def _get_pinned_message():
     try:
         chat = bot.get_chat(DB_CHANNEL_ID)
         return getattr(chat, "pinned_message", None)
+    except telebot.apihelper.ApiTelegramException as e:
+        # **CRITICAL DIAGNOSTIC LOGGING ADDED HERE**
+        # This will catch the API error (e.g., "Bot not found in chat")
+        logger.error("API ERROR: Cannot access DB channel. Code: %s, Description: %s", 
+                     e.error_code, e.description)
+        logger.error("SOLUTION: Ensure the bot is an ADMIN in the channel with 'Post' and 'Pin' permissions.")
+        return None
     except Exception as e:
-        # NOTE: This exception is what was originally causing the crash until the diagnostic test.
-        # It means the bot does not have Admin rights in the DB channel.
-        logger.exception("Failed to get pinned message (CRITICAL DB CHECK): %s", e)
+        logger.exception("Failed to get pinned message (UNKNOWN ERROR): %s", e)
         return None
 
 def load_db() -> Dict[str, Any]:
