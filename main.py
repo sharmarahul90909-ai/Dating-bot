@@ -22,8 +22,9 @@ from typing import Dict, Any
 
 from flask import Flask, request
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
-
+from telebot.types import ...
+# ADD THIS LINE:
+from telebot.apihelper import ApiTelegramException
 # ---------------- logging ----------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dating-bot")
@@ -61,16 +62,19 @@ FAKE_PROFILES_FEMALE = [
 DB_CHAR_LIMIT = 3800  # safe margin under Telegram message limit
 
 def _get_pinned_message():
-    """Return pinned_message object or None"""
+    """Return pinned_message object or None. Handles API errors gracefully."""
+    if not DB_CHANNEL_ID:
+        return None
     try:
+        # This is the call that raises the permission error (400)
         chat = bot.get_chat(DB_CHANNEL_ID)
         return getattr(chat, "pinned_message", None)
-    except telebot.apihelper.ApiTelegramException as e:
-        # **CRITICAL DIAGNOSTIC LOGGING ADDED HERE**
-        # This will catch the API error (e.g., "Bot not found in chat")
-        logger.error("API ERROR: Cannot access DB channel. Code: %s, Description: %s", 
+    except ApiTelegramException as e:
+        # **THIS IS THE CRITICAL LOGGING FIX**
+        # This will print the error code (e.g., 400 Bad Request) to your Render logs.
+        logger.error("API ERROR in DB access. Code: %s, Description: %s", 
                      e.error_code, e.description)
-        logger.error("SOLUTION: Ensure the bot is an ADMIN in the channel with 'Post' and 'Pin' permissions.")
+        logger.error("SOLUTION: Ensure the bot is an ADMIN in the channel (%s) with 'Post' and 'Pin' permissions.", DB_CHANNEL_ID)
         return None
     except Exception as e:
         logger.exception("Failed to get pinned message (UNKNOWN ERROR): %s", e)
@@ -244,47 +248,45 @@ def _send_browse_view(uid: int):
 
 @bot.message_handler(commands=["init_db"])
 def cmd_init_db(message):
+    """Admin command to initialize the database pinned message."""
     if message.from_user.id not in ADMIN_IDS:
         bot.reply_to(message, "Admin only.")
         return
-    ok = safe_init_db(message.from_user.id)
+    
+    # This call now uses the fixed _get_pinned_message()
+    ok = safe_init_db(message.from_user.id) 
+    
     if ok:
         bot.reply_to(message, "DB initialized (existing data preserved).")
     else:
+        # This is where the silent error will be caught and should be logged above.
+        bot.reply_to(message, "Failed to initialize DB. Check server logs for API_ERROR details.")
+@bot.message_handler(commands=["start", "menu", "init_db"])
+def cmd_unified_test(message):
+    uid = message.chat.id
+    
+    logger.info("Handler reached for chat ID: %s", uid)
+
+    try:
+        # Attempt the simple reply
+        bot.send_message(uid, 
+                         "✅ **SYSTEM CHECK SUCCESS!** The core is working.",
+                         parse_mode="HTML")
+        logger.info("Successfully sent diagnostic message.")
+        return
+    except ApiTelegramException as e:
+        # **This is the critical part that logs the error code**
+        logger.error("API ERROR on send_message or during handling.")
+        logger.error("Code: %s, Description: %s", e.error_code, e.description)
+        logger.error("SOLUTION: Check if the bot is blocked OR if DB permissions are missing.")
+        return
+    except Exception as e:
+        logger.exception("CRITICAL: Failed to send simple diagnostic message (Unknown error).")
+        return (existing data preserved).")
+    else:
         bot.reply_to(message, "Failed to initialize DB — check bot permissions on channel.")
 
-@bot.message_handler(commands=["start", "menu"])
-def cmd_start(message):
-    uid = message.from_user.id
 
-    # --- DIAGNOSTIC START ---
-    try:
-        # Bypass DB check entirely, just send a simple message first.
-        bot.send_message(message.chat.id, 
-                         "✅ **DIAGNOSTIC REPLY SUCCESS!** The server and handler are live.", 
-                         reply_markup=main_menu_keyboard())
-        
-        # Now, try the DB check *separately*. If this line causes a crash, 
-        # the first message should still be sent.
-        rec = get_user_record(uid) 
-        
-        if rec and rec.get("registered"):
-            bot.send_message(message.chat.id, f"Welcome back, <b>{rec.get('name')}</b>! Use /profiles to browse.")
-            return
-
-        # Start Registration if DB check succeeded but user is not registered
-        TEMP_BUFFER[uid] = {"tgid": uid}
-        # ... (rest of the registration logic, if needed)
-        REG_STEP[uid] = "photo"
-        bot.send_message(message.chat.id, "Step 1: Send your profile photo (mandatory).")
-        
-    except Exception as e:
-        logger.exception("CRITICAL ERROR IN CMD_START: %s", e)
-        # Send a fallback error message if possible
-        try:
-             bot.send_message(message.chat.id, "❌ **CRITICAL FAILURE:** The bot logic crashed. Check the logs for API_ERROR.")
-        except:
-             pass
     # --- DIAGNOSTIC END ---
 
 
