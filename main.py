@@ -527,22 +527,18 @@ def echo_all(message):
 
 
 # ---------------- webhook + health endpoits ----------------
-@app.route(f"/{BOT_TOKEN}", methods=["POST"])
-def telegram_webhook():
-    try:
-        json_str = request.get_data().decode("utf-8")
-        if not json_str:
-            return "", 400
-        update = telebot.types.Update.de_json(json_str)
-        # Process updates. If any handler crashes, it may cause a silent failure here.
-        if update.message:
-            bot.process_new_messages([update.message])
+@app.route(f"/{TOKEN}", methods=['POST'])
+def webhook():
+    json_data = request.get_json(force=True)
+    update = telebot.types.Update.de_json(json_data)
     
-        return "", 200
-    except Exception as e:
-        logger.exception("Error processing update: %s", e)
-        # If the server crashes here, the log shows 500
-        return "", 500
+    if update.message:
+        bot.process_new_messages([update.message])
+    elif update.callback_query:
+        bot.process_new_callback_query([update.callback_query])
+
+    return "OK", 200
+    
 
 @app.route("/", methods=["GET"])
 def index():
