@@ -196,7 +196,7 @@ def cmd_start(message):
 
     # --- START TEMPORARY TEST BLOCK ---
     # THIS BYPASSES THE DB CHECK. If this works, the problem is 100% the DB channel access.
-    bot.send_message(uid, "TEMPORARY TEST SUCCESS! DB Check bypassed.", reply_markup=main_menu_keyboard())
+    bot.send_message(uid, "TEMPORARY TEST SUCCESS! DB Check bypassed.", parse_mode="HTML")
     return
     # --- END TEMPORARY TEST BLOCK ---
 
