@@ -3,3 +3,14 @@ pyTelegramBotAPI==4.13.0
 gunicorn==22.0.0
 python-dotenv==1.0.0
 requests==2.32.5
+Werkzeug==3.1.4
+Jinja2==3.1.6
+itsdangerous==2.2.0
+click==8.3.1
+blinker==1.9.0
+packaging==25.0
+charset-normalizer==3.4.4
+idna==3.11
+urllib3==2.6.1
+certifi==2025.11.12
+MarkupSafe==3.0.3
