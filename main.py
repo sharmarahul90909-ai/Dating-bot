@@ -179,46 +179,37 @@ def profile_buttons(target_id: int, vip: bool):
     return markup
 
 # ---------------- bot handlers ----------------
-@bot.message_handler(commands=["init_db"])
-def cmd_init_db(message):
-    if message.from_user.id not in ADMIN_IDS:
-        bot.reply_to(message, "Admin only.")
-        return
-    ok = safe_init_db(message.from_user.id)
-    if ok:
-        bot.reply_to(message, "DB initialized (existing data preserved).")
-    else:
-        bot.reply_to(message, "Failed to initialize DB — check bot permissions on channel.")
+# ---------------- bot handlers ----------------
 
-# --- START TEMPORARY DIAGNOSTIC HANDLERS ---
-
-# 1. SIMPLE /START TEST: Bypasses ALL database and keyboard logic.
-# This MUST respond if the BOT_TOKEN and server are correct.
-@bot.message_handler(commands=["start", "menu"])
-def cmd_start_test(message):
+# --- UNIFIED DIAGNOSTIC HANDLER ---
+# This handler replaces cmd_init_db, cmd_start, and cmd_start_test.
+# It MUST respond if the BOT_TOKEN and server are correct.
+@bot.message_handler(commands=["start", "menu", "init_db"])
+def cmd_unified_test(message):
     uid = message.chat.id
     try:
-        # This is the simplest possible reply. If this fails, the BOT_TOKEN is the problem.
-        bot.send_message(uid, "✅ TEST SUCCESS! The server, webhook, and bot token are functional.")
+        # This is the simplest possible reply, eliminating all database and keyboard logic.
+        bot.send_message(uid, 
+                         "✅ **SYSTEM CHECK SUCCESS!** The server, webhook, and bot token are functional.\n\n"
+                         "**Next Step:** The original bot logic failed due to the database. You must now:\n"
+                         "1. **CRITICAL:** Go to the Telegram channel <code>-1003419549531</code> and ensure the bot is an **Admin** with **Post Messages** and **Pin Messages** permissions.\n"
+                         "2. Revert to your original `main.py` code (undoing this change).\n"
+                         "3. Send the command **<code>/init_db</code>** to the bot one last time.",
+                         parse_mode="HTML")
         return
     except Exception as e:
-        # Log error if the message fails to send (e.g., bot blocked by user)
         logger.exception("CRITICAL: Failed to send simple diagnostic message.")
-        bot.send_message(uid, "❌ CRITICAL FAILURE: Could not send message. Check BOT_TOKEN or if bot is blocked.")
+        # If this logs, the token (8582454187:AAESv...) is likely invalid or blocked.
+        return
 
-# 2. ADMIN CHECK: Confirms ADMIN_IDS is set correctly
-@bot.message_handler(commands=["admin_check"])
-def cmd_admin_check(message):
-    uid = message.chat.id
-    if uid in ADMIN_IDS:
-        bot.send_message(uid, f"✅ ADMIN CHECK SUCCESS! Your ID ({uid}) is recognized as admin.")
-    else:
-        bot.send_message(uid, "❌ Admin Check Failed. You are not recognized as admin.")
 
 # 3. ECHO HANDLER: Handles all other text to prove general functionality
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def echo_all(message):
     bot.send_message(message.chat.id, "I received your message. The core handlers are working.")
+
+# --- END DIAGNOSTIC HANDLERS ---
+# (The rest of your original handlers for 'photo' and 'text' follow below)
 
 # --- END TEMPORARY DIAGNOSTIC HANDLERS ---
 
