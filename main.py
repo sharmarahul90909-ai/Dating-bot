@@ -190,16 +190,20 @@ def cmd_init_db(message):
     else:
         bot.reply_to(message, "Failed to initialize DB — check bot permissions on channel.")
 
-@bot.message_handler(commands=["start"])
+@bot.message_handler(commands=["start", "menu"])
 def cmd_start(message):
     uid = message.from_user.id
-    rec = get_user_record(uid)
-    if rec and rec.get("registered"):
-        bot.send_message(message.chat.id, f"Welcome back, <b>{rec.get('name')}</b>!", parse_mode="HTML", reply_markup=main_menu_keyboard())
-        return
-    TEMP_BUFFER[uid] = {}
-    REG_STEP[uid] = "photo"
-    bot.send_message(message.chat.id, "Welcome! Step 1: Send your profile photo (mandatory).", reply_markup=main_menu_keyboard())
+
+    # --- START TEMPORARY TEST BLOCK ---
+    # THIS BYPASSES THE DB CHECK. If this works, the problem is 100% the DB channel access.
+    bot.send_message(uid, "TEMPORARY TEST SUCCESS! DB Check bypassed.", reply_markup=main_menu_keyboard())
+    return
+    # --- END TEMPORARY TEST BLOCK ---
+
+    # The original code follows:
+    # rec = get_user_record(uid)
+    # if rec and rec.get("registered"):
+    # ...
 
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message):
