@@ -535,7 +535,9 @@ def telegram_webhook():
             return "", 400
         update = telebot.types.Update.de_json(json_str)
         # Process updates. If any handler crashes, it may cause a silent failure here.
-        bot.process_new_updates([update])
+        if update.message:
+            bot.process_new_messages([update.message])
+    
         return "", 200
     except Exception as e:
         logger.exception("Error processing update: %s", e)
