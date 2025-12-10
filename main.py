@@ -565,7 +565,7 @@ def set_webhook():
         logger.info("Webhook set successfully.")
     except Exception as e:
         logger.exception("Failed to set webhook: %s", e)
-
+        
 # Set webhook now (gunicorn workers may call this on import)
 set_webhook()
 # ---------------- run (development) ----------------
