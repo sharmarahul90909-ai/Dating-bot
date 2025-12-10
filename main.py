@@ -256,16 +256,36 @@ def cmd_init_db(message):
 @bot.message_handler(commands=["start", "menu"])
 def cmd_start(message):
     uid = message.from_user.id
-    rec = get_user_record(uid)
 
-    if rec and rec.get("registered"):
-        bot.send_message(message.chat.id, f"Welcome back, <b>{rec.get('name')}</b>! What's next?", reply_markup=main_menu_keyboard())
-        return
+    # --- DIAGNOSTIC START ---
+    try:
+        # Bypass DB check entirely, just send a simple message first.
+        bot.send_message(message.chat.id, 
+                         "✅ **DIAGNOSTIC REPLY SUCCESS!** The server and handler are live.", 
+                         reply_markup=main_menu_keyboard())
+        
+        # Now, try the DB check *separately*. If this line causes a crash, 
+        # the first message should still be sent.
+        rec = get_user_record(uid) 
+        
+        if rec and rec.get("registered"):
+            bot.send_message(message.chat.id, f"Welcome back, <b>{rec.get('name')}</b>! Use /profiles to browse.")
+            return
 
-    # Start Registration
-    TEMP_BUFFER[uid] = {"tgid": uid}
-    REG_STEP[uid] = "photo"
-    bot.send_message(message.chat.id, "Welcome! Step 1: Send your profile photo (mandatory).", reply_markup=main_menu_keyboard())
+        # Start Registration if DB check succeeded but user is not registered
+        TEMP_BUFFER[uid] = {"tgid": uid}
+        # ... (rest of the registration logic, if needed)
+        REG_STEP[uid] = "photo"
+        bot.send_message(message.chat.id, "Step 1: Send your profile photo (mandatory).")
+        
+    except Exception as e:
+        logger.exception("CRITICAL ERROR IN CMD_START: %s", e)
+        # Send a fallback error message if possible
+        try:
+             bot.send_message(message.chat.id, "❌ **CRITICAL FAILURE:** The bot logic crashed. Check the logs for API_ERROR.")
+        except:
+             pass
+    # --- DIAGNOSTIC END ---
 
 
 @bot.message_handler(commands=["profile"])
