@@ -527,7 +527,7 @@ def echo_all(message):
 
 
 # ---------------- webhook + health endpoits ----------------
-@app.route(f"/{TOKEN}", methods=['POST'])
+@app.route(f"/{BOT_TOKEN}", methods=['POST'])
 def webhook():
     json_data = request.get_json(force=True)
     update = telebot.types.Update.de_json(json_data)
