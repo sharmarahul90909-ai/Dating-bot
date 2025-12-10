@@ -190,20 +190,18 @@ def cmd_init_db(message):
     else:
         bot.reply_to(message, "Failed to initialize DB — check bot permissions on channel.")
 
-@bot.message_handler(commands=["start", "menu"])
-def cmd_start(message):
-    uid = message.from_user.id
+@bot.message_handler(commands=['start', 'init_db'])
+def cmd_start_test(message):
+    uid = message.chat.id
+    try:
+        bot.send_message(uid, "ULTIMATE TEST SUCCESS! The server is functional.")
+    except Exception as e:
+        logger.error("SEND MESSAGE FAILED: %s", e)
+        # This should not happen if the token is right, but logs the error if it does.
 
-    # --- START TEMPORARY TEST BLOCK ---
-    # THIS BYPASSES THE DB CHECK. If this works, the problem is 100% the DB channel access.
-    bot.send_message(uid, "TEMPORARY TEST SUCCESS! DB Check bypassed.", parse_mode="HTML")
-    return
-    # --- END TEMPORARY TEST BLOCK ---
-
-    # The original code follows:
-    # rec = get_user_record(uid)
-    # if rec and rec.get("registered"):
-    # ...
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+    bot.send_message(message.chat.id, "I received your message.")
 
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message):
