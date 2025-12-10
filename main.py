@@ -190,18 +190,37 @@ def cmd_init_db(message):
     else:
         bot.reply_to(message, "Failed to initialize DB — check bot permissions on channel.")
 
-@bot.message_handler(commands=['start', 'init_db'])
+# --- START TEMPORARY DIAGNOSTIC HANDLERS ---
+
+# 1. SIMPLE /START TEST: Bypasses ALL database and keyboard logic.
+# This MUST respond if the BOT_TOKEN and server are correct.
+@bot.message_handler(commands=["start", "menu"])
 def cmd_start_test(message):
     uid = message.chat.id
     try:
-        bot.send_message(uid, "ULTIMATE TEST SUCCESS! The server is functional.")
+        # This is the simplest possible reply. If this fails, the BOT_TOKEN is the problem.
+        bot.send_message(uid, "✅ TEST SUCCESS! The server, webhook, and bot token are functional.")
+        return
     except Exception as e:
-        logger.error("SEND MESSAGE FAILED: %s", e)
-        # This should not happen if the token is right, but logs the error if it does.
+        # Log error if the message fails to send (e.g., bot blocked by user)
+        logger.exception("CRITICAL: Failed to send simple diagnostic message.")
+        bot.send_message(uid, "❌ CRITICAL FAILURE: Could not send message. Check BOT_TOKEN or if bot is blocked.")
 
-@bot.message_handler(func=lambda message: True)
+# 2. ADMIN CHECK: Confirms ADMIN_IDS is set correctly
+@bot.message_handler(commands=["admin_check"])
+def cmd_admin_check(message):
+    uid = message.chat.id
+    if uid in ADMIN_IDS:
+        bot.send_message(uid, f"✅ ADMIN CHECK SUCCESS! Your ID ({uid}) is recognized as admin.")
+    else:
+        bot.send_message(uid, "❌ Admin Check Failed. You are not recognized as admin.")
+
+# 3. ECHO HANDLER: Handles all other text to prove general functionality
+@bot.message_handler(func=lambda message: True, content_types=['text'])
 def echo_all(message):
-    bot.send_message(message.chat.id, "I received your message.")
+    bot.send_message(message.chat.id, "I received your message. The core handlers are working.")
+
+# --- END TEMPORARY DIAGNOSTIC HANDLERS ---
 
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message):
