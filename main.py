@@ -22,8 +22,9 @@ from typing import Dict, Any
 
 from flask import Flask, request
 import telebot
-from telebot.types import ...
-# ADD THIS LINE:
+# This line lists the specific types needed for your bot's keyboards
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+# This line is the fix we added previously for error logging (it is now clean)
 from telebot.apihelper import ApiTelegramException
 # ---------------- logging ----------------
 logging.basicConfig(level=logging.INFO)
