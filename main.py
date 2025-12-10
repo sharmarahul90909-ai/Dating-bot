@@ -246,6 +246,34 @@ def _send_browse_view(uid: int):
 
 # ---------------- bot handlers ----------------
 
+# ---------------- bot handlers ----------------
+
+@bot.message_handler(commands=["start", "menu"])
+def cmd_start(message):
+    uid = message.from_user.id
+    rec = get_user_record(uid)
+    
+    # Try to send a message immediately to catch the blocked user error (403)
+    try:
+        if rec and rec.get("registered"):
+            bot.send_message(uid, f"Welcome back, <b>{rec.get('name')}</b>! Use /profiles to browse.", reply_markup=main_menu_keyboard())
+            return
+    except ApiTelegramException as e:
+        # This will catch the 403 (blocked) or other errors and log them clearly.
+        logger.error("API ERROR on initial /start reply. Code: %s, Description: %s", e.error_code, e.description)
+        logger.error("SOLUTION: User may have blocked the bot (403).")
+        return
+    except Exception as e:
+        logger.exception("CRITICAL: Failed to send start message (Unknown error).")
+        return
+    
+    # If not registered, start registration flow
+    if not rec or not rec.get("registered"):
+        TEMP_BUFFER[uid] = {"tgid": uid}
+        REG_STEP[uid] = "photo"
+        bot.send_message(uid, "👋 Welcome! Let's create your dating profile.\n\nStep 1: Send your profile photo (mandatory).", reply_markup=None)
+
+
 @bot.message_handler(commands=["init_db"])
 def cmd_init_db(message):
     """Admin command to initialize the database pinned message."""
@@ -259,34 +287,8 @@ def cmd_init_db(message):
     if ok:
         bot.reply_to(message, "DB initialized (existing data preserved).")
     else:
-        # This is where the silent error will be caught and should be logged above.
+        # The specific error details are now logged inside _get_pinned_message()
         bot.reply_to(message, "Failed to initialize DB. Check server logs for API_ERROR details.")
-@bot.message_handler(commands=["start", "menu", "init_db"])
-def cmd_unified_test(message):
-    uid = message.chat.id
-    
-    logger.info("Handler reached for chat ID: %s", uid)
-
-    try:
-        # Attempt the simple reply
-        bot.send_message(uid, 
-                         "✅ **SYSTEM CHECK SUCCESS!** The core is working.",
-                         parse_mode="HTML")
-        logger.info("Successfully sent diagnostic message.")
-        return
-    except ApiTelegramException as e:
-        # **This is the critical part that logs the error code**
-        logger.error("API ERROR on send_message or during handling.")
-        logger.error("Code: %s, Description: %s", e.error_code, e.description)
-        logger.error("SOLUTION: Check if the bot is blocked OR if DB permissions are missing.")
-        return
-    except Exception as e:
-        logger.exception("CRITICAL: Failed to send simple diagnostic message (Unknown error).")
-        return (existing data preserved).")
-    else:
-        bot.reply_to(message, "Failed to initialize DB — check bot permissions on channel.")
-
-
     # --- DIAGNOSTIC END ---
 
 
